@@ -1,0 +1,41 @@
+<!doctype html>
+<!--
+  The single HTML document Vite serves.
+
+  This is what "single-page application" means literally: the server returns
+  this one nearly empty file for every URL, and React builds the page in the
+  browser. `/c/devops` and `/posts/p_1` both load this exact document; React
+  Router reads the address bar and decides what to render.
+
+  That has a deployment consequence worth knowing before Phase 5. Whatever
+  serves these files in production must return index.html for unknown paths
+  instead of a 404 — otherwise the app works when you navigate to a post but
+  breaks the moment someone refreshes on it.
+-->
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <!-- Shown in search results and link previews. -->
+    <meta
+      name="description"
+      content="DevHub is a community for engineers to discuss the systems they build, the outages they survive, and the trade-offs in between."
+    />
+
+    <title>DevHub — engineering discussions</title>
+  </head>
+  <body>
+    <!-- React mounts here; see src/main.tsx. -->
+    <div id="root"></div>
+
+    <!--
+      `type="module"` lets the browser load ES modules natively, which is what
+      makes Vite's dev server fast: it serves your source files directly with
+      no bundling step. The production build replaces this with a hashed,
+      bundled asset.
+    -->
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

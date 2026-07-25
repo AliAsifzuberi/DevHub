@@ -1,0 +1,63 @@
+# ---------------------------------------------------------------------------
+# Node / frontend
+# ---------------------------------------------------------------------------
+node_modules/
+dist/
+*.local
+.vite/
+
+# ---------------------------------------------------------------------------
+# Python / backend (Phase 2)
+# ---------------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# ---------------------------------------------------------------------------
+# Secrets
+#
+# The single most important section of this file. A committed .env means the
+# credential is in git history permanently — deleting it in a later commit does
+# not remove it, and any clone still has it. Rotating a leaked secret is the
+# only real remedy, so the goal is never to commit one in the first place.
+#
+# `.env.example` is deliberately NOT ignored: it documents which variables are
+# required, with placeholder values, so a new developer knows what to set.
+# ---------------------------------------------------------------------------
+.env
+.env.*
+!.env.example
+
+# ---------------------------------------------------------------------------
+# Terraform (Phase 5)
+#
+# State files record every resource Terraform manages — including database
+# passwords and generated keys, in plaintext. They belong in a remote backend
+# (a versioned Cloud Storage bucket) which also provides the locking that stops
+# two engineers applying simultaneously.
+# ---------------------------------------------------------------------------
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+crash.log
+
+# ---------------------------------------------------------------------------
+# Editors and OS noise
+# ---------------------------------------------------------------------------
+.DS_Store
+.idea/
+*.swp
+.vscode/*
+!.vscode/extensions.json
+
+# ---------------------------------------------------------------------------
+# Logs
+# ---------------------------------------------------------------------------
+*.log
+npm-debug.log*

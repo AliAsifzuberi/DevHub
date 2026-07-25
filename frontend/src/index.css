@@ -1,0 +1,64 @@
+/**
+ * Global stylesheet and design-token definitions.
+ *
+ * Tailwind v4 changed how configuration works. In v3 you wrote a
+ * `tailwind.config.js` and a `postcss.config.js`. In v4 the framework is
+ * imported as CSS and configured with the `@theme` at-rule right here, which
+ * means there is exactly one place to look for design decisions.
+ *
+ * Why design tokens at all, instead of writing `bg-[#4f46e5]` everywhere?
+ * Because hardcoded colour literals scattered across 40 components are
+ * impossible to change consistently. Defining `--color-brand-600` once means
+ * rebranding is a one-line edit, and it gives the colour a *name* that
+ * expresses intent ("brand") rather than an implementation detail ("indigo").
+ */
+
+@import 'tailwindcss';
+
+@theme {
+  /* Brand accent — used for links, primary buttons, and active nav state. */
+  --color-brand-50: #eef2ff;
+  --color-brand-100: #e0e7ff;
+  --color-brand-200: #c7d2fe;
+  --color-brand-500: #6366f1;
+  --color-brand-600: #4f46e5;
+  --color-brand-700: #4338ca;
+
+  /* Semantic vote colours. Upvote warm, downvote cool — mirrors the
+     convention users already know from Reddit, so no learning curve. */
+  --color-upvote: #f97316;
+  --color-downvote: #6366f1;
+
+  /* Neutral surface scale for page background, cards, and borders. */
+  --color-surface: #ffffff;
+  --color-canvas: #f6f7f9;
+
+  --font-sans:
+    ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica,
+    Arial, sans-serif;
+}
+
+/**
+ * Base layer resets. Anything in `@layer base` has lower specificity than
+ * utility classes, so a component can always override these with e.g.
+ * `bg-white` without a specificity fight.
+ */
+@layer base {
+  html {
+    /* Prevents the page from shifting horizontally when a route is long
+       enough to introduce a scrollbar and the next one is not. */
+    scrollbar-gutter: stable;
+  }
+
+  body {
+    @apply bg-canvas text-slate-700 antialiased;
+    font-family: var(--font-sans);
+  }
+
+  /* Make keyboard focus clearly visible. Removing focus outlines is a common
+     accessibility regression; here we restyle rather than remove, and use
+     :focus-visible so mouse clicks don't show a ring but Tab navigation does. */
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-brand-600;
+  }
+}
