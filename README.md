@@ -14,14 +14,14 @@ documented where they are made, including the ones that were rejected and why.
 | Phase | Scope | State |
 | --- | --- | --- |
 | 1 | Frontend foundation — React, routing, components, UI | **Complete** |
-| 2 | Backend foundation — FastAPI, PostgreSQL, REST API | Not started |
-| 3 | Integration — real authentication, live data | Not started |
+| 2 | Backend foundation — FastAPI, PostgreSQL, REST API | **Complete** |
+| 3 | Integration — real authentication, live data | **Complete** |
 | 4 | Advanced — Redis caching, notifications, WebSockets | Not started |
 | 5 | Cloud — Docker, Terraform, GCP deployment | Not started |
 
-Phase 1 runs entirely on mock data. There is no backend yet, and the login form
-accepts any password. Both are intentional; see *How the mock layer works*
-below.
+Phase 3 connects the React app to FastAPI. Run Postgres + API + `npm run dev`,
+then log in with `maya_builds` / `password123`. Notes:
+[`docs/phase-3-integration.md`](docs/phase-3-integration.md).
 
 ---
 
@@ -66,8 +66,7 @@ devhub/
 └── docker-compose.yml Local orchestration                  (Phase 5)
 ```
 
-Only `frontend/` and `docs/` exist so far. The rest are created in later
-phases rather than committed empty.
+Only `infra/` is still empty. `backend/` is live as of Phase 2.
 
 ### Inside `frontend/src`
 
@@ -117,22 +116,17 @@ Detailed reasoning lives in [`docs/architecture.md`](docs/architecture.md).
 
 ---
 
-## How the mock layer works
+## How the API layer works
 
-Every component fetches through `src/mocks/api.ts`, whose functions are `async`,
-introduce artificial latency, and can throw. That matters: it means components
-are already written against the shape of a real network call.
+Every component fetches through `src/mocks/api.ts`. The **function names** are
+the same as Phase 1; the **bodies** now call Axios against FastAPI:
 
 ```
-Component  →  React Query  →  mocks/api.ts  →  in-memory seed data
-                                   ▲
-                          Phase 3 replaces only this
+Component  →  React Query  →  mocks/api.ts  →  /api/*  →  Vite proxy  →  FastAPI  →  Postgres
 ```
 
-In Phase 3 the body of each function is swapped for an `apiClient` call. The
-signatures do not change, so nothing above that line needs rewriting. Had
-components read the mock arrays synchronously instead, every one of them would
-need to be rebuilt around loading and error states the day the backend landed.
+Vite proxies `/api` to port 8000 in development so the browser stays
+same-origin. See [`docs/phase-3-integration.md`](docs/phase-3-integration.md).
 
 ---
 

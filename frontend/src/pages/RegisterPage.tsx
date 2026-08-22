@@ -1,15 +1,8 @@
 /**
- * Registration page.
+ * Registration page — creates an account via POST /api/auth/register.
  *
- * Purpose: create an account.
- *
- * The validation here is worth reading as a pattern rather than as rules. Each
- * constraint is duplicated on the server in Phase 2, because client validation
- * is a courtesy that anyone can bypass. What it provides is an instant,
- * specific error instead of a round trip — and the two implementations must
- * agree, or users hit a server rejection the form promised would not happen.
- *
- * Dependencies: React Router, the auth hook, and the UI primitives.
+ * Client validation mirrors the backend rules. The server remains the real
+ * authority; this layer only saves a round trip for honest typos.
  */
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
@@ -17,16 +10,7 @@ import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { useAuth } from '@/hooks/useAuth'
 
-/**
- * Usernames are restricted to letters, numbers, and underscores.
- *
- * The restriction is not arbitrary. Usernames appear in URLs (`/u/maya`), so
- * allowing slashes or spaces would break routing or require escaping
- * everywhere. Excluding lookalike characters also limits impersonation via
- * visually similar names.
- */
 const USERNAME_PATTERN = /^[a-zA-Z0-9_]{3,20}$/
-
 const MIN_PASSWORD_LENGTH = 8
 
 export function RegisterPage() {
@@ -35,6 +19,7 @@ export function RegisterPage() {
 
   const [username, setUsername] = useState('')
   const [displayName, setDisplayName] = useState('')
+  const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [validationError, setValidationError] = useState<string | null>(null)
 
@@ -47,14 +32,11 @@ export function RegisterPage() {
       )
       return
     }
+    if (!email.includes('@') || email.length < 5) {
+      setValidationError('Enter a valid email address.')
+      return
+    }
     if (password.length < MIN_PASSWORD_LENGTH) {
-      /**
-       * Length is the single most effective password rule. Composition
-       * requirements — one symbol, one digit — push users toward predictable
-       * substitutions like "Password1!" and measurably reduce entropy, which
-       * is why current NIST guidance favours length and screening against
-       * known-breached passwords instead.
-       */
       setValidationError(
         `Passwords must be at least ${MIN_PASSWORD_LENGTH} characters.`,
       )
@@ -63,10 +45,10 @@ export function RegisterPage() {
 
     setValidationError(null)
     try {
-      await register(username, displayName, password)
+      await register({ username, displayName, email, password })
       navigate('/', { replace: true })
     } catch {
-      // Message already surfaced through the provider's `error`.
+      // Error already on the provider.
     }
   }
 
@@ -96,9 +78,6 @@ export function RegisterPage() {
               className="w-full rounded-lg border border-slate-300 px-3.5 py-2 text-sm focus:border-brand-500 focus:outline-none"
               placeholder="jordan_dev"
             />
-            <p className="mt-1 text-xs text-slate-400">
-              This appears in your profile URL and cannot be changed later.
-            </p>
           </div>
 
           <div>
@@ -122,6 +101,25 @@ export function RegisterPage() {
 
           <div>
             <label
+              htmlFor="email"
+              className="mb-1.5 block text-sm font-medium text-slate-700"
+            >
+              Email
+            </label>
+            <input
+              id="email"
+              type="email"
+              required
+              autoComplete="email"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              className="w-full rounded-lg border border-slate-300 px-3.5 py-2 text-sm focus:border-brand-500 focus:outline-none"
+              placeholder="jordan@example.com"
+            />
+          </div>
+
+          <div>
+            <label
               htmlFor="new-password"
               className="mb-1.5 block text-sm font-medium text-slate-700"
             >
@@ -131,7 +129,6 @@ export function RegisterPage() {
               id="new-password"
               type="password"
               required
-              /* Tells password managers to offer a generated password. */
               autoComplete="new-password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
@@ -153,7 +150,10 @@ export function RegisterPage() {
 
         <p className="mt-5 text-center text-sm text-slate-500">
           Already have an account?{' '}
-          <Link to="/login" className="font-semibold text-brand-600 hover:underline">
+          <Link
+            to="/login"
+            className="font-semibold text-brand-600 hover:underline"
+          >
             Log in
           </Link>
         </p>

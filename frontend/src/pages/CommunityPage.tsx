@@ -109,7 +109,12 @@ export function CommunityPage() {
             <Button
               variant={community.isMember ? 'secondary' : 'primary'}
               isLoading={membership.isPending}
-              onClick={() => membership.mutate(community.slug)}
+              onClick={() =>
+                membership.mutate({
+                  slug: community.slug,
+                  isMember: community.isMember,
+                })
+              }
             >
               {community.isMember ? 'Joined' : 'Join'}
             </Button>

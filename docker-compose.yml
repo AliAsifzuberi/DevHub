@@ -1,0 +1,30 @@
+# Local infrastructure for DevHub development.
+#
+# Why Docker for Postgres?
+# So everyone on the team (and you on day-two of a new laptop) gets the same
+# database version without installing Postgres via Homebrew and fighting paths.
+# The app still runs on the host in Phase 2; only the database is containerised
+# for now. Phase 5 puts every service in Compose.
+#
+# Host port 5433 (not 5432) avoids colliding with other local Postgres containers.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: devhub-postgres
+    environment:
+      POSTGRES_USER: devhub
+      POSTGRES_PASSWORD: devhub
+      POSTGRES_DB: devhub
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U devhub -d devhub"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  postgres_data:

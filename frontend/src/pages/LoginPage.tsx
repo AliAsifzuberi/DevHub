@@ -1,13 +1,8 @@
 /**
  * Login page.
  *
- * Purpose: authenticate an existing user and return them to wherever they were
- * headed.
- *
- * PHASE 1 BEHAVIOUR: any password is accepted for a known username. See
- * `AuthProvider` for what Phase 3 must replace here. Try `maya_builds`.
- *
- * Dependencies: React Router, the auth hook, and the UI primitives.
+ * Purpose: authenticate against the real API and return the user to wherever
+ * they were headed. Seed account: maya_builds / password123
  */
 import { useState, type FormEvent } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
@@ -99,7 +94,7 @@ export function LoginPage() {
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               className="w-full rounded-lg border border-slate-300 px-3.5 py-2 text-sm focus:border-brand-500 focus:outline-none"
-              placeholder="Any password works in Phase 1"
+              placeholder="password123"
             />
           </div>
 
