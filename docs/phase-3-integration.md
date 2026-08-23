@@ -145,5 +145,5 @@ in an HttpOnly cookie.
 
 ## 9. What’s next (Phase 4)
 
-Redis: cache the hot feed, rate-limit auth, and (later) pub/sub for live
-notifications over WebSockets.
+Done — see [`phase-4-redis.md`](phase-4-redis.md): Redis feed cache, auth rate
+limits, and live notifications via Pub/Sub + WebSockets.

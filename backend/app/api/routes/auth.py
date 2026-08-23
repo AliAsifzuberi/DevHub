@@ -1,10 +1,11 @@
 """Auth routes: register, login, current user."""
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, Request, status
 from sqlalchemy import select
 
 from app.api.deps import CurrentUser, DbSession
 from app.api.serializers import user_to_public
+from app.core.rate_limit import client_ip, enforce_rate_limit
 from app.core.security import (
     create_access_token,
     hash_password,
@@ -17,13 +18,19 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 @router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
-async def register(body: UserRegister, db: DbSession) -> TokenResponse:
+async def register(
+    request: Request,
+    body: UserRegister,
+    db: DbSession,
+) -> TokenResponse:
     """
     Create an account and return a JWT immediately.
 
     Client validation is duplicated here on purpose — the browser can be
     bypassed with curl, so the server is the real authority.
     """
+    await enforce_rate_limit(bucket="register", identity=client_ip(request))
+
     existing = await db.execute(
         select(User).where(
             (User.username == body.username) | (User.email == body.email)
@@ -51,7 +58,13 @@ async def register(body: UserRegister, db: DbSession) -> TokenResponse:
 
 
 @router.post("/login", response_model=TokenResponse)
-async def login(body: UserLogin, db: DbSession) -> TokenResponse:
+async def login(
+    request: Request,
+    body: UserLogin,
+    db: DbSession,
+) -> TokenResponse:
+    await enforce_rate_limit(bucket="login", identity=client_ip(request))
+
     result = await db.execute(select(User).where(User.username == body.username))
     user = result.scalar_one_or_none()
 

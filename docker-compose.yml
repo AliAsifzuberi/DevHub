@@ -1,12 +1,14 @@
-# Local infrastructure for DevHub development.
+# Local DevHub stack — Phase 5.
 #
-# Why Docker for Postgres?
-# So everyone on the team (and you on day-two of a new laptop) gets the same
-# database version without installing Postgres via Homebrew and fighting paths.
-# The app still runs on the host in Phase 2; only the database is containerised
-# for now. Phase 5 puts every service in Compose.
+# Infra-only (host runs API + Vite, same as Phases 2–4):
+#   docker compose up -d postgres redis
 #
-# Host port 5433 (not 5432) avoids colliding with other local Postgres containers.
+# Full stack in containers:
+#   docker compose --profile full up --build
+#
+# Full stack UI: http://localhost:8080
+# API direct:    http://localhost:8000/docs
+# Host ports 5433 / 6380 avoid colliding with other local Postgres/Redis.
 
 services:
   postgres:
@@ -25,6 +27,57 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: devhub-redis
+    ports:
+      - "6380:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    profiles: ["full"]
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: devhub-api
+    environment:
+      DATABASE_URL: postgresql+asyncpg://devhub:devhub@postgres:5432/devhub
+      REDIS_URL: redis://redis:6379/0
+      JWT_SECRET_KEY: compose-dev-only-change-me
+      DEBUG: "true"
+      # Browser hits the SPA on :8080; nginx proxies /api same-origin.
+      # Direct :8000 access still needs CORS for local debugging.
+      CORS_ORIGINS: '["http://localhost:8080","http://127.0.0.1:8080"]'
+      RUN_SEED: "true"
+      PORT: "8000"
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  web:
+    profiles: ["full"]
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: devhub-web
+    environment:
+      LISTEN_PORT: "80"
+      BACKEND_UPSTREAM: api:8000
+      BACKEND_HOST: api
+      BACKEND_SCHEME: http
+    ports:
+      - "8080:80"
+    depends_on:
+      - api
 
 volumes:
   postgres_data:

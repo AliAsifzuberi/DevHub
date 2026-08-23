@@ -1,0 +1,6 @@
+project_id = "your-gcp-project-id"
+region     = "us-central1"
+
+# After: terraform apply (Artifact Registry exists), build & push, then set:
+api_image = "us-central1-docker.pkg.dev/your-gcp-project-id/devhub/api:latest"
+web_image = "us-central1-docker.pkg.dev/your-gcp-project-id/devhub/web:latest"

@@ -1,0 +1,11 @@
+# Ignore build junk and local secrets — keep the image small and safe.
+.env
+.venv
+__pycache__
+*.py[cod]
+.pytest_cache
+.ruff_cache
+.mypy_cache
+tests
+README.md
+.gitignore

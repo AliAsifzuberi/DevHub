@@ -4,6 +4,9 @@ Comment thread endpoints nested under posts.
   GET  /api/posts/{post_id}/comments
   POST /api/posts/{post_id}/comments
   POST /api/comments/{comment_id}/vote
+
+Phase 4: creating a comment notifies the post/parent author (persist + Redis
+pub/sub) and invalidates the feed cache because comment_count changed.
 """
 
 from uuid import UUID
@@ -14,11 +17,13 @@ from sqlalchemy.orm import selectinload
 
 from app.api.deps import CurrentUser, DbSession, OptionalUser
 from app.api.serializers import build_comment_tree
+from app.core.cache import invalidate_feed_cache
 from app.models.comment import Comment
 from app.models.post import Post
 from app.models.vote import CommentVote
 from app.schemas.comment import CommentCreate, CommentOut
 from app.schemas.post import VoteRequest
+from app.services.notifications import notify_user
 
 posts_router = APIRouter(prefix="/posts", tags=["comments"])
 comments_router = APIRouter(prefix="/comments", tags=["comments"])
@@ -70,6 +75,7 @@ async def create_comment(
     if post is None:
         raise HTTPException(status_code=404, detail="Post not found")
 
+    parent: Comment | None = None
     if body.parent_id is not None:
         parent = await db.get(Comment, body.parent_id)
         if parent is None or parent.post_id != post_id:
@@ -88,6 +94,26 @@ async def create_comment(
 
     db.add(CommentVote(user_id=user.id, comment_id=comment.id, value=1))
     await db.flush()
+    await invalidate_feed_cache()
+
+    # Notify the person who owns the thing being replied to — never yourself.
+    link = f"/posts/{post_id}"
+    if parent is not None and parent.author_id != user.id:
+        await notify_user(
+            db,
+            user_id=parent.author_id,
+            type="reply",
+            message=f"{user.username} replied to your comment",
+            link=link,
+        )
+    elif parent is None and post.author_id != user.id:
+        await notify_user(
+            db,
+            user_id=post.author_id,
+            type="comment",
+            message=f"{user.username} commented on your post",
+            link=link,
+        )
 
     loaded = await db.execute(
         select(Comment)

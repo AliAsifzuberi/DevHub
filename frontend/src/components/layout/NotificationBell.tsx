@@ -3,38 +3,34 @@
  *
  * Purpose: surface activity on the user's posts and comments.
  *
- * PHASE 1 vs PHASE 4
- * Right now this polls a static list once. In Phase 4 the same component will
- * be fed by a WebSocket: the backend publishes to a Redis channel when a
- * comment, reply, or vote occurs, every server instance subscribed to that
- * channel receives it, and each pushes to its connected clients.
+ * Initial list still comes from GET /notifications (survives refresh). Live
+ * updates arrive over the WebSocket hook — Redis Pub/Sub fans the event out
+ * so the right Cloud Run instance can push to this browser.
  *
- * Redis Pub/Sub is what makes that work across more than one server. On Cloud
- * Run there are many container instances, and the user who should receive a
- * notification is probably connected to a different instance from the one
- * handling the request that triggered it. Without a shared message bus, that
- * notification simply never arrives — a bug that is invisible in local
- * development, where there is only ever one instance.
- *
- * Dependencies: React Query, React Router, and the click-outside hook.
+ * Dependencies: React Query, React Router, auth, and the click-outside hook.
  */
 import { useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
+import { useAuth } from '@/hooks/useAuth'
+import { useNotificationSocket } from '@/hooks/useNotificationSocket'
 import { useOnClickOutside } from '@/hooks/useOnClickOutside'
 import { fetchNotifications } from '@/mocks/api'
 import { queryKeys } from '@/lib/queryClient'
 import { cn, formatRelativeTime } from '@/lib/format'
 
 export function NotificationBell() {
+  const { user } = useAuth()
   const [isOpen, setIsOpen] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
 
   useOnClickOutside(containerRef, () => setIsOpen(false), isOpen)
+  useNotificationSocket(Boolean(user))
 
   const { data: notifications = [] } = useQuery({
     queryKey: queryKeys.notifications(),
     queryFn: fetchNotifications,
+    enabled: Boolean(user),
   })
 
   const unreadCount = notifications.filter((item) => !item.isRead).length

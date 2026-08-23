@@ -6,9 +6,13 @@ Matches the Phase 1 mock contract:
   GET  /api/posts/{id}
   POST /api/posts
   POST /api/posts/{id}/vote
+
+Phase 4: list_posts reads/writes a Redis feed cache. Shared fields only —
+viewerVote / isMember are overlaid per request from Postgres.
 """
 
 from datetime import UTC, datetime
+from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Query, status
@@ -17,6 +21,7 @@ from sqlalchemy.orm import selectinload
 
 from app.api.deps import CurrentUser, DbSession, OptionalUser
 from app.api.serializers import post_to_out
+from app.core.cache import get_cached_feed, invalidate_feed_cache, set_cached_feed
 from app.models.community import Community, CommunityMembership
 from app.models.post import Post
 from app.models.vote import PostVote
@@ -62,12 +67,48 @@ def _post_query():
     )
 
 
+def _overlay_viewer_fields(
+    shared: list[dict[str, Any]],
+    *,
+    votes: dict[UUID, int],
+    member_of: set[UUID],
+) -> list[PostOut]:
+    """
+    Attach viewer-specific fields to shared feed JSON without mutating Redis.
+    """
+    out: list[PostOut] = []
+    for item in shared:
+        post_id = UUID(item["id"])
+        community_id = UUID(item["community"]["id"])
+        merged = {
+            **item,
+            "viewerVote": votes.get(post_id, 0),
+            "community": {
+                **item["community"],
+                "isMember": community_id in member_of,
+            },
+        }
+        out.append(PostOut.model_validate(merged))
+    return out
+
+
 @router.get("", response_model=list[PostOut])
 async def list_posts(
     db: DbSession,
     viewer: OptionalUser,
     sort: FeedSort = Query(default="hot"),
 ) -> list[PostOut]:
+    cached = await get_cached_feed(sort)
+    if cached is not None:
+        post_ids = [UUID(item["id"]) for item in cached]
+        member_of = await _membership_set(db, viewer.id if viewer else None)
+        votes = await _post_votes_map(
+            db, viewer.id if viewer else None, post_ids
+        )
+        return _overlay_viewer_fields(
+            cached, votes=votes, member_of=member_of
+        )
+
     result = await db.execute(_post_query())
     posts = list(result.scalars().all())
 
@@ -79,19 +120,20 @@ async def list_posts(
         now = datetime.now(UTC)
         posts.sort(key=lambda p: _hot_rank(p, now), reverse=True)
 
+    # Shared payload: never bake in viewerVote / isMember.
+    shared = [
+        post_to_out(post, viewer_vote=0, is_member=False).model_dump(
+            mode="json", by_alias=True
+        )
+        for post in posts
+    ]
+    await set_cached_feed(sort, shared)
+
     member_of = await _membership_set(db, viewer.id if viewer else None)
     votes = await _post_votes_map(
         db, viewer.id if viewer else None, [p.id for p in posts]
     )
-
-    return [
-        post_to_out(
-            post,
-            viewer_vote=votes.get(post.id, 0),
-            is_member=post.community_id in member_of,
-        )
-        for post in posts
-    ]
+    return _overlay_viewer_fields(shared, votes=votes, member_of=member_of)
 
 
 @router.get("/{post_id}", response_model=PostOut)
@@ -143,6 +185,7 @@ async def create_post(
     # Author's automatic upvote — same behaviour as the Phase 1 mock.
     db.add(PostVote(user_id=user.id, post_id=post.id, value=1))
     await db.flush()
+    await invalidate_feed_cache()
 
     loaded = await db.execute(_post_query().where(Post.id == post.id))
     post = loaded.scalar_one()
@@ -187,11 +230,12 @@ async def vote_post(
         if existing is not None:
             await db.delete(existing)
     elif existing is None:
-        db.add(PostVote(user_id=user.id, post_id=post_id, value=next_vote))
+        db.add(PostVote(user_id=user.id, post_id=post.id, value=next_vote))
     else:
         existing.value = next_vote
 
     await db.flush()
+    await invalidate_feed_cache()
 
     member_of = await _membership_set(db, user.id)
     return post_to_out(

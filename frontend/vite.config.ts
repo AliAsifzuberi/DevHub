@@ -55,6 +55,8 @@ export default defineConfig({
       '/api': {
         target: 'http://localhost:8000',
         changeOrigin: true,
+        // Phase 4: upgrade HTTP proxy to WebSocket for /api/ws/*.
+        ws: true,
       },
     },
   },

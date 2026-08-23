@@ -14,12 +14,21 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.router import api_router
 from app.core.config import get_settings
+from app.core.redis import close_redis, init_redis
+from app.core.ws_manager import start_notification_listener, stop_notification_listener
 
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
-    # Startup / shutdown hooks live here later (Redis pools, etc.).
-    yield
+    # Connect Redis once for the process, then start the pub/sub fan-out task
+    # that forwards notification events to local WebSockets.
+    await init_redis()
+    start_notification_listener()
+    try:
+        yield
+    finally:
+        await stop_notification_listener()
+        await close_redis()
 
 
 def create_app() -> FastAPI:

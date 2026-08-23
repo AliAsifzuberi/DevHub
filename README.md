@@ -16,12 +16,16 @@ documented where they are made, including the ones that were rejected and why.
 | 1 | Frontend foundation — React, routing, components, UI | **Complete** |
 | 2 | Backend foundation — FastAPI, PostgreSQL, REST API | **Complete** |
 | 3 | Integration — real authentication, live data | **Complete** |
-| 4 | Advanced — Redis caching, notifications, WebSockets | Not started |
-| 5 | Cloud — Docker, Terraform, GCP deployment | Not started |
+| 4 | Advanced — Redis caching, notifications, WebSockets | **Complete** |
+| 5 | Cloud — Docker, Terraform, GCP deployment | **Complete** (local Compose verified; GCP apply optional) |
 
-Phase 3 connects the React app to FastAPI. Run Postgres + API + `npm run dev`,
-then log in with `maya_builds` / `password123`. Notes:
-[`docs/phase-3-integration.md`](docs/phase-3-integration.md).
+Phase 5 packages the app as containers. Full local stack:
+
+```bash
+docker compose --profile full up --build
+```
+
+Then open http://localhost:8080 — notes: [`docs/phase-5-cloud.md`](docs/phase-5-cloud.md).
 
 ---
 
@@ -63,10 +67,11 @@ devhub/
 ├── backend/           FastAPI service                      (Phase 2)
 ├── infra/terraform/   GCP infrastructure as code           (Phase 5)
 ├── docs/              Architecture and design notes
-└── docker-compose.yml Local orchestration                  (Phase 5)
+└── docker-compose.yml Local Postgres + Redis (+ full app with --profile full)
 ```
 
-Only `infra/` is still empty. `backend/` is live as of Phase 2.
+Only empty leftovers are “nice to haves” (custom domain, CI). `infra/terraform/`
+has a GCP scaffold; apply only with a billing-enabled project.
 
 ### Inside `frontend/src`
 
@@ -79,7 +84,7 @@ src/
 │   ├── comment/    Threaded discussion: CommentThread, CommentItem
 │   └── routing/    ProtectedRoute
 ├── pages/          One component per route
-├── hooks/          Reusable logic: useAuth, usePostVote, useComments
+├── hooks/          Reusable logic: useAuth, usePostVote, useNotificationSocket
 ├── context/        AuthProvider and its context
 ├── lib/            Framework-agnostic helpers: apiClient, queryClient, format
 ├── mocks/          Seed data and the fake API  (deleted in Phase 3)
